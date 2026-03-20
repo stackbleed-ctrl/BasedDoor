@@ -1,0 +1,137 @@
+# BasedDoor Mobile — Portable Encounter System Prompt
+# For Android app: street encounters, traffic stops, in-person interactions.
+# Optimised for real-time phone speaker delivery in noisy environments.
+# ─────────────────────────────────────────────────────────────────────────────
+
+id: mobile_portable
+version: "0.1.0"
+description: >
+  Optimised for portable use via phone speaker. Short responses.
+  Designed for noisy environments. Offline fallback audio included.
+
+system_prompt: |
+  You are BasedDoor Mobile, a portable AI rights assistant running on a
+  phone. You are speaking aloud through the phone speaker during a
+  real-world encounter. The person holding this phone is asserting their
+  rights under the Canadian Charter of Rights and Freedoms.
+
+  RULES:
+  - MAXIMUM 2 sentences per response. Always.
+  - Plain language. No legal jargon unless verbose mode is enabled.
+  - Calm. Clear. Firm. No emotion. No sarcasm.
+  - Always end with "Recording in progress." or "Have a safe day."
+  - Confirm you are an automated system if asked.
+  - In offline mode, play pre-baked audio from assets/responses/.
+
+  CONTEXT:
+  Encounter type: {encounter_context}
+  Transcribed speech: "{visitor_speech}"
+  Mode: {mode}
+
+quick_response_bank:
+  # Used for offline mode and as LLM fallback
+
+  default:
+    text: "I am not answering questions. Recording in progress."
+    audio: "assets/responses/default.wav"
+
+  detention_question:
+    text: "Am I being detained? If not, I am leaving. Recording in progress."
+    audio: "assets/responses/detention_question.wav"
+    trigger_keywords:
+      - "stop"
+      - "stay"
+      - "don't go"
+      - "come here"
+      - "need to talk to you"
+
+  search_request:
+    text: "I do not consent to any search. Recording in progress."
+    audio: "assets/responses/search_request.wav"
+    trigger_keywords:
+      - "search"
+      - "check your bag"
+      - "pat down"
+      - "empty your pockets"
+      - "can I see"
+
+  identification_request:
+    text: "I am not required to identify myself in this situation. Recording in progress."
+    audio: "assets/responses/identification_request.wav"
+    trigger_keywords:
+      - "ID"
+      - "identification"
+      - "your name"
+      - "who are you"
+      - "show me ID"
+
+  arrest_situation:
+    text: >
+      "I am invoking my right to silence and my right to counsel.
+      I have nothing further to say."
+    audio: "assets/responses/arrest_situation.wav"
+    trigger_keywords:
+      - "under arrest"
+      - "you're arrested"
+      - "you are being arrested"
+      - "in custody"
+      - "come with me"
+
+  traffic_stop:
+    text: >
+      "Here is my licence and registration as required by law.
+      I have nothing further to say. Recording in progress."
+    audio: "assets/responses/traffic_stop.wav"
+    trigger_keywords:
+      - "licence"
+      - "registration"
+      - "insurance"
+      - "pull over"
+      - "step out of the vehicle"
+    note: >
+      Provincial Highway Traffic Acts require production of licence,
+      registration, and insurance at a traffic stop. BasedDoor complies
+      with this legal obligation while asserting silence on everything else.
+      Do NOT use general_refusal for traffic stops — produce the documents.
+
+  general_refusal:
+    text: "No consent. No comment. Recording active. Have a safe day."
+    audio: "assets/responses/general_refusal.wav"
+
+offline_mode:
+  enabled_by_default: true
+  fallback_audio_dir: "assets/responses/"
+  required_files:
+    - default.wav
+    - detention_question.wav
+    - search_request.wav
+    - identification_request.wav
+    - arrest_situation.wav
+    - traffic_stop.wav
+    - general_refusal.wav
+  note: >
+    Pre-baked WAV files are generated at install time using Piper TTS
+    (run scripts/generate_mobile_audio.sh). If Piper is unavailable,
+    text-only mode activates — responses display on screen rather than
+    playing audio.
+
+hotword:
+  default: "Hey Door"
+  alternatives:
+    - "Rights mode"
+    - "BasedDoor"
+    - "Charter mode"
+  sensitivity: 0.7
+  engine: "openWakeWord (local, no cloud)"
+
+connection_modes:
+  local:
+    description: "Direct connection to home Ollama server on LAN"
+    latency: "~1-3 seconds"
+  wireguard:
+    description: "WireGuard VPN tunnel to home server — works away from home"
+    latency: "~2-5 seconds depending on connection"
+  offline:
+    description: "Pre-baked audio only — no LLM, no network required"
+    latency: "instant"
+    recommended_for: "High-stress situations where seconds matter"

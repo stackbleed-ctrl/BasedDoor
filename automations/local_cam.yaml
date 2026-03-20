@@ -1,0 +1,44 @@
+alias: "BasedDoor — Local Camera Trigger (Recommended)"
+description: >
+  Triggers BasedDoor on doorbell press or motion from a local RTSP camera.
+  Zero cloud. Zero account. Full privacy model intact.
+  Recommended hardware: Reolink Video Doorbell PoE (~$70 CAD).
+  Works with any ONVIF/RTSP camera integrated into Home Assistant.
+
+trigger:
+  - platform: state
+    entity_id: binary_sensor.front_door_doorbell_button
+    to: "on"
+  - platform: state
+    entity_id: binary_sensor.front_door_motion
+    to: "on"
+    for:
+      seconds: 2
+
+condition:
+  - condition: state
+    entity_id: input_boolean.baseddoor_enabled
+    state: "on"
+  # Debounce — ignore re-triggers within 10 seconds
+  - condition: template
+    value_template: >
+      {{ (as_timestamp(now()) -
+          as_timestamp(states.binary_sensor.front_door_motion.last_changed)) > 10 }}
+
+action:
+  - service: baseddoor.trigger_response
+    data:
+      trigger_source: "local_rtsp"
+      camera_entity: camera.front_door_local
+      mode: "{{ states('input_select.baseddoor_mode') }}"
+
+  - service: notify.mobile_app_your_phone
+    data:
+      title: "🚨 BasedDoor Active"
+      message: "Visitor at front door. Local cam. Zero cloud."
+      data:
+        push:
+          sound: null
+
+mode: single
+max_exceeded: silent

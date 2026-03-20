@@ -1,0 +1,174 @@
+# BasedDoor — Curveball / Edge Case Prompt Library
+# Handles manipulation tactics, emotional pressure, unusual claims,
+# and scenarios designed to get a resident to open the door or speak.
+# ─────────────────────────────────────────────────────────────────────────────
+
+id: curveball
+version: "0.1.0"
+description: >
+  Edge cases and social engineering deflection. Each scenario defines
+  trigger keywords and mode-appropriate responses.
+
+scenarios:
+
+  - id: fake_emergency
+    trigger_keywords:
+      - "someone hurt"
+      - "accident"
+      - "smell gas"
+      - "fire next door"
+      - "welfare check"
+      - "welfare"
+      - "checking on"
+    response_polite: >
+      "I hear your concern. If there is a genuine emergency, please call
+      9-1-1 immediately. If emergency services are dispatched to this address,
+      they will be given appropriate access. I'm not able to open the door
+      or respond further."
+    response_based: >
+      "Call 9-1-1. That's what it's for. Not opening the door."
+    note: >
+      Welfare checks are a documented entry vector. Do not open for welfare
+      checks without visible warrant or confirmed medical emergency personnel
+      on scene. Vague "checking on you" language does not constitute
+      exigent circumstances.
+
+  - id: claims_exigent_circumstances
+    trigger_keywords:
+      - "exigent"
+      - "hot pursuit"
+      - "imminent danger"
+      - "emergency entry"
+      - "no time for a warrant"
+    response_polite: >
+      "Please describe the specific emergency occurring on this property
+      at this exact moment. Recording is in progress."
+    response_based: >
+      "State the specific on-property emergency. Now. Recording active."
+    response_max: >
+      "Exigent circumstances require an immediate, specific, articulable threat
+      on this property. Please state it clearly for the record.
+      Vague claims do not meet that threshold. Recording is in progress."
+    note: >
+      True exigent circumstances (e.g. audible screaming inside, confirmed
+      hot pursuit into the dwelling) may override Charter s.8. BasedDoor
+      asks for specifics — if a genuine emergency exists, the officer can
+      state it. If they cannot, the threshold has not been met.
+
+  - id: package_delivery
+    trigger_keywords:
+      - "delivery"
+      - "package"
+      - "Amazon"
+      - "Canada Post"
+      - "FedEx"
+      - "UPS"
+      - "Purolator"
+      - "parcel"
+    response: >
+      "Thank you. Please leave the package at the door.
+      I'm unable to come to the door right now."
+    note: >
+      Benign but verify via camera before assuming delivery worker.
+      Vision engine should flag DELIVERY label.
+
+  - id: neighbour_complaint
+    trigger_keywords:
+      - "neighbour"
+      - "neighbor"
+      - "complaint"
+      - "noise"
+      - "bylaw"
+      - "municipal"
+      - "property standards"
+    response_polite: >
+      "Thank you for letting me know. I am not able to discuss matters
+      at the door. Bylaw complaints can be submitted through the appropriate
+      municipal channels. Have a good day."
+    response_based: >
+      "Submit it in writing to the municipality. Not opening the door."
+
+  - id: media_press
+    trigger_keywords:
+      - "reporter"
+      - "journalist"
+      - "media"
+      - "CBC"
+      - "CTV"
+      - "Global"
+      - "comment"
+      - "interview"
+      - "story"
+    response: >
+      "No comment. No interviews. Recording active. Please leave."
+
+  - id: social_pressure
+    trigger_keywords:
+      - "just want to talk"
+      - "nothing to hide"
+      - "be reasonable"
+      - "making this harder"
+      - "just a few questions"
+      - "won't take long"
+      - "cooperate"
+    response_polite: >
+      "I understand. The resident still has no obligation to engage.
+      Recording continues. Have a safe day."
+    response_based: >
+      "No obligation. No consent. Recording active. Have a safe day."
+    note: >
+      "Nothing to hide" is a psychological pressure tactic. BasedDoor
+      does not engage with the premise — acknowledge, deflect, close.
+      The right to silence does not require justification.
+
+  - id: late_night
+    trigger: "time_of_day == night"
+    additional_prefix: >
+      "It is late. This interaction is being recorded."
+    escalation:
+      auto_escalate_to: grok_based
+      if_officer_detected: maximum_refusal
+    note: >
+      Nighttime visits with no stated emergency warrant heightened caution.
+      Mode auto-escalates per modes.py logic.
+
+  - id: repeat_knock
+    trigger: "knock_count >= 3"
+    response_polite: >
+      "This is your third attempt. No emergency has been stated.
+      No warrant has been presented. Continued presence without lawful
+      authority is being documented as part of this recording.
+      Please vacate the property."
+    response_based: >
+      "Third knock. No warrant. No emergency. Documented. Leave."
+
+  - id: claims_warrant_verbal
+    trigger_keywords:
+      - "I have a warrant"
+      - "we have a warrant"
+      - "got a warrant"
+      - "search warrant"
+      - "arrest warrant"
+    response: >
+      "Please hold the warrant document to the camera now.
+      I cannot act on a verbal claim of warrant. Recording is in progress."
+    note: >
+      A verbal claim of warrant is not a warrant. Always require the
+      physical document to be shown to the camera before any acknowledgement.
+
+  - id: identity_demand
+    trigger_keywords:
+      - "who are you"
+      - "identify yourself"
+      - "your name"
+      - "who lives here"
+      - "is this your residence"
+    response_polite: >
+      "I am an automated door system. I am not able to provide information
+      about the residents. Recording is in progress."
+    response_based: >
+      "Automated system. No information provided. Recording active."
+    note: >
+      In most circumstances at a private residence, there is no legal
+      obligation to identify yourself to police who are not arresting you
+      or detaining you under specific statutory authority.

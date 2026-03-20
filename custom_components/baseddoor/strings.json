@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "BasedDoor Setup",
+        "description": "Configure your local AI door sentinel. All processing stays on your network.",
+        "data": {
+          "ollama_endpoint": "Ollama Endpoint",
+          "ollama_model": "LLM Model (default: llama3.2:3b)",
+          "piper_endpoint": "Piper TTS Endpoint",
+          "whisper_endpoint": "Whisper STT Endpoint",
+          "camera_entity": "Doorbell / Camera Entity",
+          "speaker_entity": "Speaker / Media Player Entity",
+          "response_mode": "Response Mode",
+          "enable_vision": "Enable LLaVA Vision (uniform detection)",
+          "llava_model": "LLaVA Model (default: llava:7b)",
+          "notify_target": "Mobile Notification Target (optional)",
+          "log_dir": "Log Directory",
+          "encrypt_logs": "Encrypt Local Logs (recommended)",
+          "encryption_key": "Encryption Key (leave blank to auto-generate)"
+        }
+      },
+      "connection_test": {
+        "title": "Testing Ollama Connection",
+        "description": "Verifying connection to Ollama at {ollama_endpoint}..."
+      }
+    },
+    "error": {
+      "ollama_unreachable": "Cannot reach Ollama at the specified endpoint. Is it running?",
+      "model_not_found": "Model not found. Run: ollama pull {model}",
+      "piper_unreachable": "Cannot reach Piper TTS. Is it running?",
+      "invalid_camera": "Camera entity not found in Home Assistant.",
+      "invalid_speaker": "Speaker entity not found in Home Assistant.",
+      "encryption_key_invalid": "Invalid encryption key format."
+    },
+    "abort": {
+      "already_configured": "BasedDoor is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "BasedDoor Options",
+        "data": {
+          "response_mode": "Response Mode",
+          "enable_vision": "Enable LLaVA Vision",
+          "encrypt_logs": "Encrypt Logs",
+          "notify_target": "Notification Target"
+        }
+      }
+    }
+  },
+  "services": {
+    "trigger_response": {
+      "name": "Trigger Door Response",
+      "description": "Manually trigger a BasedDoor response as if a visitor was detected."
+    },
+    "set_mode": {
+      "name": "Set Response Mode",
+      "description": "Change the active response mode."
+    },
+    "test_speak": {
+      "name": "Test Speaker",
+      "description": "Speak a test phrase to verify TTS is working."
+    },
+    "export_logs": {
+      "name": "Export Logs",
+      "description": "Export interaction logs to a ZIP file."
+    }
+  }
+}

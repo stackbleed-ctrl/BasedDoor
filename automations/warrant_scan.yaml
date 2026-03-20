@@ -1,0 +1,49 @@
+alias: "BasedDoor — Warrant Document Scan"
+description: >
+  Triggers a warrant document scan when the user presses the scan button
+  or calls the baseddoor.scan_warrant service.
+  Captures a camera snapshot, runs LLaVA OCR extraction + LLM sanity check,
+  speaks the result via TTS, logs everything locally encrypted.
+  Requires LLaVA vision model enabled in BasedDoor config.
+
+# ── Trigger options (use whichever fits your setup) ──────────────────────────
+# Option A: Physical button / HA dashboard button press
+trigger:
+  - platform: state
+    entity_id: input_button.baseddoor_scan_warrant
+  # Option B: Service call from mobile or voice assistant
+  # (baseddoor.scan_warrant handles this directly — no automation needed)
+  # Option C: STT keyword detection (future — requires Whisper keyword watch)
+  # - platform: event
+  #   event_type: baseddoor_keyword_detected
+  #   event_data:
+  #     keyword: "warrant"
+
+condition:
+  - condition: state
+    entity_id: input_boolean.baseddoor_enabled
+    state: "on"
+
+action:
+  # Step 1: Announce scan starting
+  - service: baseddoor.test_speak
+    data:
+      message: >
+        "Warrant scan initiated. Please hold the document flat and steady,
+         facing the camera. Scanning now."
+
+  # Step 2: Short pause to let officer position document
+  - delay:
+      seconds: 3
+
+  # Step 3: Run the warrant scan
+  - service: baseddoor.scan_warrant
+    data:
+      camera_entity: camera.front_door_local
+      speaker_entity: media_player.front_door_speaker
+
+  # Step 4: Notify mobile with result (coordinator handles this internally,
+  #          but you can add a second notify here if needed)
+
+mode: single
+max_exceeded: silent

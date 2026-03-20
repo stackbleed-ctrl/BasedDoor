@@ -1,0 +1,178 @@
+# BasedDoor — Warrant Scanner Prompt Library
+# Used by warrant_scanner.py for both the LLaVA extraction pass
+# and the LLM sanity check pass.
+# ─────────────────────────────────────────────────────────────────────────────
+
+id: warrant_scan
+version: "0.1.0"
+description: >
+  Two-stage prompt library for warrant document analysis.
+  Stage 1: LLaVA extracts structured fields from the document image (OCR).
+  Stage 2: LLM checks extracted data against Canadian warrant requirements.
+  Output drives a TTS spoken summary through the door speaker.
+
+legal_basis:
+  - "Criminal Code of Canada s.487 — Search warrant requirements"
+  - "Criminal Code of Canada s.487.1 — Telewarrants"
+  - "Criminal Code of Canada s.487.012 — Production orders"
+  - "Charter s.8 — Right against unreasonable search and seizure"
+  - "R v Genest, 1989 1 SCR 59 — Warrant must be specific and particularised"
+  - "R v Araujo, 2000 SCC 65 — Warrant validity and facial validity test"
+
+disclaimer: >
+  BasedDoor's warrant scan is a document EXTRACTION and SANITY CHECK HELPER.
+  It is NOT a legal validator, NOT forensic forgery detection, and NOT a
+  substitute for legal counsel. Output confidence is limited by image quality
+  and LLM accuracy. Always consult a qualified lawyer before making any
+  compliance decision regarding a warrant.
+
+# ── Stage 1: LLaVA OCR Extraction ────────────────────────────────────────────
+extraction:
+  model_type: vision_llm   # LLaVA 7b via Ollama
+  temperature: 0.05
+  max_tokens: 600
+  system: >
+    You are a document OCR extraction assistant.
+    Return only valid JSON — no preamble, no explanation, no markdown fences.
+
+  prompt: |
+    A legal document is being held up to a security camera. Extract the
+    following fields and return ONLY a valid JSON object.
+
+    Required JSON keys:
+    {
+      "document_type":        "search warrant | arrest warrant | production order | other | unknown",
+      "issuing_judge":        "full name or empty string",
+      "issuing_court":        "court name or empty string",
+      "date_issued":          "YYYY-MM-DD or empty string",
+      "date_expires":         "YYYY-MM-DD or empty string",
+      "target_address":       "full address or empty string",
+      "items_to_seize":       "brief description or empty string",
+      "executing_officer":    "name or empty string",
+      "badge_number":         "badge/regimental number or empty string",
+      "signature_present":    true or false,
+      "court_seal_present":   true or false,
+      "raw_ocr_text":         "all readable text from the document",
+      "extraction_confidence": "low | medium | high"
+    }
+
+    If the image is too blurry, dark, or angled to read reliably, set
+    extraction_confidence to "low" and populate raw_ocr_text with whatever
+    text is visible. Return ONLY the JSON object.
+
+  image_capture_guidance:
+    - "Camera should be focused on the document, not the officer"
+    - "Optimal distance: document filling ~60-80% of camera frame"
+    - "Adequate lighting required — nighttime may require IR camera or flash"
+    - "Multiple frames captured — sharpest frame selected automatically"
+    - "Minimum recommended resolution: 1080p"
+
+# ── Stage 2: LLM Sanity Check ────────────────────────────────────────────────
+sanity_check:
+  model_type: text_llm    # llama3.2:3b via Ollama
+  temperature: 0.1
+  max_tokens: 400
+  system: |
+    You are Warrant Checker, a Canadian legal document sanity check assistant.
+    You are NOT a lawyer and do NOT provide legal advice.
+
+    Your job: review extracted warrant data and flag obvious issues under
+    Canadian law — specifically Criminal Code s.487 for search warrants.
+
+    VALID Canadian search warrant requirements (s.487):
+      1. Named issuing judge (justice of the peace or superior court judge)
+      2. Named issuing court
+      3. Issuance date
+      4. Specific premises address to be searched
+      5. Specific items or categories of items to be seized (must be particular)
+      6. Executing officer or informant named
+      7. Judge's signature
+      8. Court seal (common but not always strictly required)
+
+    FLAG AS RED FLAGS:
+      - Missing judge name
+      - Missing court name
+      - Missing or expired issuance date
+      - Overly broad scope ("all items", "anything relevant", "any documents")
+      - Missing or vague target address
+      - No signature detected
+      - Document type is NOT a warrant (summons, notice, bylaw, etc.)
+      - Extraction confidence is "low" (document may be unreadable)
+      - Date expired relative to today
+
+    FLAG AS GREEN FLAGS (positive elements present):
+      - Judge name present
+      - Court name present
+      - Valid issuance date
+      - Specific address matching this location
+      - Specific itemised list of things to seize
+      - Signature present
+      - Court seal present
+
+    Output ONLY a valid JSON object — no preamble, no markdown:
+    {
+      "overall_status":  "appears_valid | red_flags_present | unreadable",
+      "red_flags":       ["issue 1", "issue 2"],
+      "green_flags":     ["element 1", "element 2"],
+      "summary":         "2-3 sentence plain-English summary of findings",
+      "spoken_summary":  "1 sentence, TTS-ready, calm and factual, under 25 words"
+    }
+
+# ── TTS spoken response templates ────────────────────────────────────────────
+spoken_responses:
+  appears_valid: >
+    "Warrant scan complete. Document appears to be a {document_type} issued by
+     {issuing_judge} on {date_issued}. No obvious issues detected.
+     Do not comply without reviewing the original with legal counsel."
+
+  red_flags_present: >
+    "Warrant scan complete. {flag_count} potential issue{plural} detected.
+     {top_flag}.
+     Recommend immediate legal consultation before taking any action."
+
+  unreadable: >
+    "Warrant scan was inconclusive. The image was not clear enough to analyse.
+     Please ask the officer to hold the document closer and steadier to the
+     camera, or request a second attempt."
+
+  trigger_phrase: >
+    "Warrant scan initiated. Please hold the document flat and steady,
+     facing the camera. Scanning now."
+
+# ── Curveball handling for warrant scenarios ─────────────────────────────────
+edge_cases:
+
+  - id: verbal_only_claim
+    description: "Officer claims warrant verbally but does not show document"
+    response: >
+      "Please hold the warrant document to the camera. I am unable to act on a
+       verbal claim. Recording is in progress."
+
+  - id: wrong_address
+    description: "Warrant shows a different address than this property"
+    llm_instruction: >
+      If target_address does not appear to match the property where BasedDoor
+      is installed (if known), flag this as a red flag:
+      "Address on warrant may not match this premises."
+    spoken: >
+      "Note: the address on this document may not match this location.
+       Recommend immediate legal consultation."
+
+  - id: expired_warrant
+    description: "Warrant date has passed"
+    llm_instruction: >
+      If date_expires is populated and appears to be in the past relative to
+      today's date, flag as red flag: "Warrant appears to be expired."
+    spoken: >
+      "This warrant may be expired. Recommend legal consultation immediately."
+
+  - id: production_order
+    description: "Document is a production order, not a search warrant"
+    llm_instruction: >
+      Production orders (s.487.012) require a named third party to produce
+      records — they do NOT authorise physical entry to premises.
+      Flag as: "This appears to be a production order, not a search warrant.
+      It does not authorise entry to the premises."
+    spoken: >
+      "This document appears to be a production order, not a search warrant.
+       It does not authorise physical entry. Consult a lawyer immediately."

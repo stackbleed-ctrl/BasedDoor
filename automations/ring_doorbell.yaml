@@ -1,0 +1,37 @@
+alias: "BasedDoor — Ring Doorbell Trigger"
+description: >
+  Triggers BasedDoor on Ring doorbell press or motion.
+  Requires Ring-MQTT add-on (https://github.com/tsightler/ring-mqtt).
+  ⚠️ Cloud dependency — see docs/RING_NOTES.md before using this.
+  For privacy-first setup use local_cam.yaml instead.
+
+trigger:
+  - platform: state
+    entity_id: binary_sensor.front_door_ring_doorbell_ding
+    to: "on"
+  - platform: state
+    entity_id: binary_sensor.front_door_ring_motion
+    to: "on"
+
+condition:
+  - condition: state
+    entity_id: input_boolean.baseddoor_enabled
+    state: "on"
+
+action:
+  - service: baseddoor.trigger_response
+    data:
+      trigger_source: "ring_doorbell"
+      camera_entity: camera.front_door_ring
+      mode: "{{ states('input_select.baseddoor_mode') }}"
+
+  - service: notify.mobile_app_your_phone
+    data:
+      title: "🚨 BasedDoor Active"
+      message: "Visitor detected. BasedDoor responding."
+      data:
+        push:
+          sound: null
+
+mode: single
+max_exceeded: silent
