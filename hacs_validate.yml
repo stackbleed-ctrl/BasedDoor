@@ -1,4 +1,4 @@
-name: HACS Validation
+name: CI
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
     branches: [main]
 
 jobs:
+
+  # ── 1. HACS Validation ──────────────────────────────────────────────────────
   validate:
     name: HACS Validator
     runs-on: ubuntu-latest
@@ -18,26 +20,7 @@ jobs:
         with:
           category: integration
 
-  lint:
-    name: Python Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          pip install ruff
-
-      - name: Ruff lint
-        run: |
-          ruff check custom_components/baseddoor/ --select E,F,W,I \
-            --ignore E501,E402
-
+  # ── 2. Hassfest (HA integration validator) ──────────────────────────────────
   hassfest:
     name: Hassfest
     runs-on: ubuntu-latest
@@ -46,3 +29,79 @@ jobs:
 
       - name: Hassfest
         uses: home-assistant/actions/hassfest@master
+
+  # ── 3. Auto-fix lint + commit back ──────────────────────────────────────────
+  lint-autofix:
+    name: Lint + Auto-fix
+    runs-on: ubuntu-latest
+    # Only auto-commit on direct pushes to main/dev, not on PRs
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need full token so the bot can push fixes back
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff --fix (auto-correct what it can)
+        run: |
+          ruff check custom_components/baseddoor/ \
+            --select E,F,W,I \
+            --ignore E501,E402 \
+            --fix \
+            --exit-zero
+
+      - name: Check for changes after fix
+        id: changes
+        run: |
+          git diff --quiet || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit auto-fixes if any
+        if: steps.changes.outputs.changed == 'true' && github.event_name == 'push'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add custom_components/baseddoor/
+          git commit -m "style: auto-fix lint issues via ruff [skip ci]"
+          git push
+
+      - name: Final lint check (fail if unfixable errors remain)
+        run: |
+          ruff check custom_components/baseddoor/ \
+            --select E,F,W,I \
+            --ignore E501,E402
+
+  # ── 4. Tests ─────────────────────────────────────────────────────────────────
+  tests:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov/
+          if-no-files-found: ignore
