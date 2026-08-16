@@ -22,9 +22,9 @@ from .coordinator import BasedDoorCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+# Retained for backward compatibility. Semantics are document extraction/review,
+# not legal validation.
 SERVICE_SCAN_WARRANT = "scan_warrant"
-
-# ── Service schemas ───────────────────────────────────────────────────────────
 
 SERVICE_TRIGGER_SCHEMA = vol.Schema({
     vol.Optional("trigger_source", default="manual"): cv.string,
@@ -38,7 +38,7 @@ SERVICE_SET_MODE_SCHEMA = vol.Schema({
 
 SERVICE_TEST_SPEAK_SCHEMA = vol.Schema({
     vol.Optional("message", default=(
-        "BasedDoor is online. No consent. No cooperation. Recording active."
+        "BasedDoor is online. This is a local automated doorstep assistant."
     )): cv.string,
 })
 
@@ -47,23 +47,17 @@ SERVICE_EXPORT_LOGS_SCHEMA = vol.Schema({
 })
 
 SERVICE_SCAN_WARRANT_SCHEMA = vol.Schema({
-    vol.Optional("camera_entity"):  cv.entity_id,
+    vol.Optional("camera_entity"): cv.entity_id,
     vol.Optional("speaker_entity"): cv.entity_id,
 })
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up BasedDoor from a config entry."""
-    _LOGGER.info("BasedDoor: setting up integration v%s", entry.data.get("version", "0.1.0"))
-
     config = {**entry.data, **entry.options}
-
     coordinator = BasedDoorCoordinator(hass, config)
     await coordinator.async_config_entry_first_refresh()
-
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-
-    # ── Service handlers ──────────────────────────────────────────────────────
 
     async def handle_trigger(call: ServiceCall) -> None:
         await coordinator.handle_trigger(
@@ -80,37 +74,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info("BasedDoor: mode set to '%s'", new_mode)
 
     async def handle_test_speak(call: ServiceCall) -> None:
-        await coordinator.tts.speak(
-            call.data.get("message", "BasedDoor is active.")
-        )
+        await coordinator.tts.speak(call.data.get("message", "BasedDoor is active."))
 
     async def handle_export_logs(call: ServiceCall) -> None:
-        dest    = call.data.get("dest_path", "/config/baseddoor_export")
+        dest = call.data.get("dest_path", "/config/baseddoor_export")
         zip_path = coordinator.log.export_zip(dest)
         _LOGGER.info("BasedDoor: logs exported to %s", zip_path)
 
     async def handle_scan_warrant(call: ServiceCall) -> None:
-        """
-        Capture a camera snapshot of the document held to the door,
-        run LLaVA OCR extraction + LLM sanity check, speak the result via TTS,
-        and write the full log entry (image + OCR JSON + summary) locally encrypted.
-        Requires enable_vision: true and llava model pulled in Ollama.
-        """
         await coordinator.handle_warrant_scan(
             camera_entity=call.data.get("camera_entity", config.get(CONF_CAMERA_ENTITY)),
             speaker_entity=call.data.get("speaker_entity", config.get("speaker_entity")),
         )
 
-    # ── Register all services ─────────────────────────────────────────────────
-    hass.services.async_register(DOMAIN, SERVICE_TRIGGER,      handle_trigger,      SERVICE_TRIGGER_SCHEMA)
-    hass.services.async_register(DOMAIN, SERVICE_SET_MODE,     handle_set_mode,     SERVICE_SET_MODE_SCHEMA)
-    hass.services.async_register(DOMAIN, SERVICE_TEST_SPEAK,   handle_test_speak,   SERVICE_TEST_SPEAK_SCHEMA)
-    hass.services.async_register(DOMAIN, SERVICE_EXPORT_LOGS,  handle_export_logs,  SERVICE_EXPORT_LOGS_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_TRIGGER, handle_trigger, SERVICE_TRIGGER_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SET_MODE, handle_set_mode, SERVICE_SET_MODE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_TEST_SPEAK, handle_test_speak, SERVICE_TEST_SPEAK_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_EXPORT_LOGS, handle_export_logs, SERVICE_EXPORT_LOGS_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SCAN_WARRANT, handle_scan_warrant, SERVICE_SCAN_WARRANT_SCHEMA)
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-
-    _LOGGER.info("BasedDoor: integration ready — mode=%s, warrant_scan=enabled", config.get(CONF_MODE))
+    _LOGGER.info("BasedDoor integration ready: capability-driven alpha 0.2")
     return True
 
 
@@ -129,5 +113,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, service)
 
     hass.data[DOMAIN].pop(entry.entry_id, None)
-    _LOGGER.info("BasedDoor: integration unloaded")
+    _LOGGER.info("BasedDoor integration unloaded")
     return True
