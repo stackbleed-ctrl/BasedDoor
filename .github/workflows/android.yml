@@ -1,0 +1,36 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build APK
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          workdir: mobile
+
+      - name: SHA-256
+        shell: bash
+        run: |
+          sha256sum "${{ steps.buildozer.outputs.filename }}" | tee BasedDoor-APK-SHA256.txt
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BasedDoor-Android
+          path: |
+            ${{ steps.buildozer.outputs.filename }}
+            BasedDoor-APK-SHA256.txt
