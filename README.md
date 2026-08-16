@@ -1,225 +1,102 @@
 # 🍁 BasedDoor
 
-> *"The AI sentinel that answers your door so you don't have to."*
-> Local-only. No cloud. No OpenAI. No cooperation.
+**A local-first doorstep assistant for Home Assistant and Android.**
 
-[![HACS Custom][hacs-badge]][hacs-link]
-[![License: MIT][license-badge]][license-link]
-[![HA Version][ha-badge]][ha-link]
-[![Offline-First](https://img.shields.io/badge/cloud-zero-red?style=flat-square)]()
-[![Tests](https://img.shields.io/github/actions/workflow/status/StackBleed/BasedDoor/hacs_validate.yml?label=CI&style=flat-square)]()
+BasedDoor is a free, MIT-licensed project designed to help residents automate a calm, privacy-preserving doorstep response, keep local event records, and optionally use local AI without requiring a cloud AI service.
 
----
+> **Current status: Alpha 0.2 hardening.** Do not treat untested hardware or AI output as authoritative. See `docs/SAFETY.md` and `docs/COMPATIBILITY.md`.
 
-## What Is BasedDoor?
+## What it does
 
-BasedDoor is a **privacy-first, local AI door sentinel** for Home Assistant.
+BasedDoor can combine Home Assistant triggers, camera snapshots, a compatible local speaker, notifications, encrypted local logs, and optional local Ollama models.
 
-When someone knocks — police, solicitors, anyone — BasedDoor:
+The architecture is capability-driven:
 
-1. **Detects** the event (doorbell, motion, knock sensor)
-2. **Optionally scans** the camera feed with LLaVA for uniforms or badges
-3. **Speaks a polite, Charter-compliant response** via your door speaker using Piper TTS
-4. **If shown a warrant** — scans and extracts the document details, runs a sanity check, speaks a summary
-5. **Logs** the encounter — encrypted video, audio, transcript, and warrant scan results — entirely on-device
-6. **Notifies** you silently on your phone
+**trigger → optional snapshot → optional local analysis → deterministic/AI response → optional speaker → local log → optional notification**
 
-Zero cloud. Zero telemetry. Zero cooperation beyond what the law requires.
+If a capability is missing, BasedDoor is expected to degrade cleanly rather than pretend the capability exists.
 
-Inspired by a real police knock-and-chat at a Nova Scotia doorstep over an X post.
-Inspired by **your rights under the Canadian Charter of Rights and Freedoms, s.7 and s.8.**
+## Privacy principles
 
----
+- local-first operation
+- no telemetry in the BasedDoor integration
+- no required cloud AI
+- deterministic offline response path
+- encrypted local logging available
+- no hidden cloud speech-recognition fallback
+- original evidence kept conceptually separate from AI interpretation
 
-## 🎯 Features
+## Important truthfulness rules
 
-| Feature | Status |
-|---|---|
-| 🗣️ Auto-voice response via Piper TTS | ✅ |
-| 🧠 Local LLM via Ollama (llama3.2:3b) | ✅ |
-| 👁️ Optional LLaVA uniform/badge vision detection | ✅ |
-| 📄 Warrant document scan (OCR + LLM sanity check) | ✅ |
-| 🎙️ Whisper STT (transcribe visitor speech) | ✅ |
-| 📼 Encrypted local video/audio/transcript logging | ✅ |
-| 📱 HA mobile push notification (silent) | ✅ |
-| 🔁 Four response modes | ✅ |
-| 🚨 Auto-escalation (night + officer → max refusal) | ✅ |
-| 📱 Standalone Android app (portable encounters) | 🔨 Beta |
-| 🔔 Ring doorbell support (with caveats) | ⚠️ See Note |
-| 📷 Reolink / RTSP local cam support | ✅ Recommended |
+BasedDoor does **not** claim that recording is active merely because a camera exists. Recording status remains fail-closed until a real recording integration positively confirms it.
 
----
+Computer-vision classifications are hints, not identity or authority verification.
 
-## 🎭 Response Modes
+Document scanning is OCR/extraction assistance only. It does not determine whether a warrant or other legal document is authentic, valid, enforceable, or applicable.
 
-| Mode | Vibe | Example |
-|---|---|---|
-| **Polite Canadian** | Respectful, firm, Charter-grounded | *"Thank you for visiting. No emergency is apparent. No warrant has been presented. Recording is active. Have a safe day."* |
-| **Grok-Based** | Direct, zero-nonsense | *"No warrant. No emergency. No consent. Recording active. Bye."* |
-| **Maximum Refusal** | Full Charter recitation | *"No emergency confirmed. No warrant presented. Under Section 7 of the Canadian Charter, the resident has the right to remain silent. Under Section 8, no consent is given to search or enter. Recording in progress. Please vacate immediately."* |
-| **User Clip** | Plays your own pre-recorded audio | *Your voice, your rules.* |
+## Installation profiles
 
----
+### Lite — no local AI required
 
-## 📄 Warrant Scanner
+Use Home Assistant triggers plus a compatible speaker and/or phone notification. Responses are deterministic and work without Ollama.
 
-When an officer presents a warrant, trigger `baseddoor.scan_warrant`:
+### Local AI
 
-1. BasedDoor announces: *"Please hold the document steady to the camera."*
-2. LLaVA extracts: judge name, court, date, address, items to seize, signature, seal
-3. LLM checks against Criminal Code s.487 requirements
-4. BasedDoor speaks the result: *"Warrant appears to be issued by Judge X on date Y. No immediate red flags detected. Recommend full legal review before complying."*
-5. Full OCR result and image saved locally, encrypted
+Enable a local Ollama text model for adaptive phrasing. If Ollama fails, BasedDoor falls back to deterministic output.
 
-**This is a document helper, not legal validation. Always consult a lawyer.**
+### Vision
 
----
+Optionally add a local vision model for image classification/document extraction. Vision is never required for the basic response path.
 
-## ⚡ One-Click HACS Install
+## Home Assistant
 
-### Prerequisites
+Prerequisites depend on the capabilities you want:
+
 - Home Assistant 2024.1+
-- [HACS](https://hacs.xyz) installed
-- [Ollama](https://ollama.ai) running locally (same machine or network)
-- [Piper TTS](https://github.com/rhasspy/piper) (script provided)
-- A doorbell or RTSP camera integrated with HA
+- HACS for custom-repository installation
+- optional camera entity
+- optional compatible media-player entity
+- optional Ollama
+- optional Piper-compatible local TTS endpoint
 
-### Step 1 — Add Repo to HACS
+Add this repository as a HACS custom integration, restart Home Assistant, then add **BasedDoor** under Settings → Devices & services.
 
-HACS → **Custom Repositories** → Add:
-```
-https://github.com/StackBleed/BasedDoor
-```
-Category: **Integration**
+## Android
 
-### Step 2 — Install
+`mobile/` contains the conservative Alpha 0.2 Android client.
 
-HACS → Integrations → Search **BasedDoor** → Install → Restart HA
+The mobile baseline is **button-first**, deterministic, and does not claim to record. A committed `buildozer.spec` and `.github/workflows/android.yml` provide a repeatable APK build path.
 
-### Step 3 — Configure
+The Android app can run without Ollama. A local-network or VPN Ollama endpoint may be configured as an optional enhancement.
 
-Settings → Devices & Services → Add Integration → **BasedDoor**
+## Hardware
 
-Fill in:
-- Ollama endpoint (default: `http://localhost:11434`)
-- Camera entity
-- Speaker entity
-- Response mode
-- Vision toggle (requires LLaVA model)
+BasedDoor does not promise blanket brand support. It consumes Home Assistant capabilities. See `docs/COMPATIBILITY.md` for the field-test matrix.
 
-### Step 4 — Run Setup Scripts (first time only)
+Reolink is a useful local camera option, but Home Assistant currently does not expose Reolink two-way audio/TTS, so spoken output requires a separately verified speaker path.
 
-```bash
-# Install Ollama + pull models
-bash scripts/install_ollama.sh
+## Canadian legal boundary
 
-# Install Piper TTS
-bash scripts/install_piper.sh
+BasedDoor communicates configured responses and helps preserve/extract information. It is not legal advice and does not determine police authority, emergency authority, or document validity.
 
-# Install Whisper STT (optional)
-bash scripts/install_whisper.sh
+Canadian law includes warrant processes and circumstances where some search powers may be exercised without a warrant. Never use BasedDoor as instructions to physically obstruct lawful action. See `docs/SAFETY.md` and current official Canadian law.
 
-# Pre-bake mobile offline audio
-bash scripts/generate_mobile_audio.sh
-```
-
-For LLaVA vision + warrant scanning:
-```bash
-INSTALL_VISION=true bash scripts/install_ollama.sh
-```
-
----
-
-## 📷 Camera Recommendation
-
-**Recommended:** Reolink Video Doorbell PoE (~$70 CAD)
-- Full local RTSP stream — no cloud, no account
-- Built-in speaker for BasedDoor TTS
-- 1080p+ for warrant document scanning
-- PoE — wired reliability, no WiFi dropouts
-
-See `docs/HARDWARE.md` for full hardware guide.
-
-### ⚠️ Ring Doorbell Note
-
-Ring requires an Amazon cloud account. Your footage transits Amazon's servers.
-Amazon has complied with law enforcement data requests without user notification.
-
-This is architecturally incompatible with BasedDoor's privacy model.
-
-See `docs/RING_NOTES.md` for details. If you're building a Charter rights tool,
-use a local camera.
-
----
-
-## 🛡️ Legal Shield
-
-**Section 7** — Right to silence and security of the person.
-You are not required to speak to police who knock without a warrant.
-
-**Section 8** — Right against unreasonable search or seizure.
-Without a warrant or genuine exigent circumstances, police cannot enter your home
-or demand you engage.
-
-See `docs/CHEATSHEET.md` for the full plain-English reference and decision tree.
-
-> ⚠️ **BasedDoor is not legal advice.** Consult a lawyer for your specific situation.
-
----
-
-## 🧪 Tests
+## Development
 
 ```bash
-pip install pytest pytest-asyncio
-
-# Run all tests
-pytest tests/
-
-# Run with coverage
-pytest tests/ --cov=custom_components/baseddoor --cov-report=term-missing
+python -m pip install -r requirements-dev.txt
+ruff check custom_components/baseddoor mobile tests --select E,F,W,I --ignore E501,E402
+pytest -q
 ```
 
-See `tests/` for full test suite covering encryption, LLM engine, vision,
-warrant scanner, coordinator pipeline, and config flow.
+CI belongs under `.github/workflows/` and should be green before a release is labelled tested.
+
+## License
+
+MIT. Free to use, inspect, fork, improve, and redistribute subject to the license.
 
 ---
 
-## 📱 Mobile App
+**Product thesis → engineering invariants → evidence-backed capability map.**
 
-See `mobile/README.md` for build and sideload instructions.
-
-Android APK via Buildozer. Offline-first. Hotword: *"Hey Door"*.
-
----
-
-## 📋 Roadmap
-
-- [ ] iOS app (Flutter)
-- [ ] LLaVA badge/uniform detection improvements
-- [ ] French language support (Québec / Bill 96)
-- [ ] Warrant address cross-reference (match against HA zone)
-- [ ] Multi-door / multi-camera support
-
----
-
-## 🤝 Contributing
-
-PRs welcome. MIT licensed. Fork it, ship it, tell your privacy circle.
-
----
-
-## 📄 License
-
-MIT — see `LICENSE`.
-
----
-
-*Built in Sydney, Nova Scotia.*
-*Dedicated to everyone who knows their rights but needed a robot to say it for them.*
-
-[hacs-badge]: https://img.shields.io/badge/HACS-Custom-orange?style=flat-square
-[hacs-link]: https://hacs.xyz
-[license-badge]: https://img.shields.io/badge/License-MIT-blue?style=flat-square
-[license-link]: LICENSE
-[ha-badge]: https://img.shields.io/badge/HA-2024.1%2B-blue?style=flat-square
-[ha-link]: https://home-assistant.io
+BasedDoor should only claim what the running system can prove.
