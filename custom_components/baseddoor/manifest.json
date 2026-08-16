@@ -1,10 +1,10 @@
 {
   "domain": "baseddoor",
   "name": "BasedDoor",
-  "version": "0.1.0",
-  "documentation": "https://github.com/StackBleed/BasedDoor",
-  "issue_tracker": "https://github.com/StackBleed/BasedDoor/issues",
-  "codeowners": ["@StackBleed"],
+  "version": "0.2.0",
+  "documentation": "https://github.com/stackbleed-ctrl/BasedDoor",
+  "issue_tracker": "https://github.com/stackbleed-ctrl/BasedDoor/issues",
+  "codeowners": ["@stackbleed-ctrl"],
   "requirements": [
     "cryptography>=41.0.0",
     "httpx>=0.25.0",
